@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Age Calculator</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d0d0d;
+      --surface: #161616;
+      --border: #2a2a2a;
+      --accent: #c8f04a;
+      --accent-dim: #a3cc2f;
+      --text: #f0ede6;
+      --muted: #666;
+      --error: #ff5e5e;
+      --radius: 4px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Mono', monospace;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      overflow-x: hidden;
+    }
+
+    /* noise overlay */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .card {
+      position: relative;
+      z-index: 1;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      width: 100%;
+      max-width: 480px;
+      padding: 3rem 2.5rem;
+    }
+
+    /* decorative corner */
+    .card::before {
+      content: '';
+      position: absolute;
+      top: -1px; right: -1px;
+      width: 40px; height: 40px;
+      background: var(--accent);
+      clip-path: polygon(100% 0, 0 0, 100% 100%);
+    }
+
+    header {
+      margin-bottom: 2.5rem;
+    }
+    header .label {
+      font-size: 0.65rem;
+      letter-spacing: 0.25em;
+      color: var(--accent);
+      text-transform: uppercase;
+      margin-bottom: 0.5rem;
+    }
+    header h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: 2.6rem;
+      font-weight: 900;
+      line-height: 1;
+      color: var(--text);
+    }
+
+    /* Input grid */
+    .input-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1.4fr;
+      gap: 0.75rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .field { display: flex; flex-direction: column; gap: 0.4rem; }
+
+    .field label {
+      font-size: 0.6rem;
+      letter-spacing: 0.2em;
+      color: var(--muted);
+      text-transform: uppercase;
+    }
+
+    .field input {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: 'DM Mono', monospace;
+      font-size: 1.4rem;
+      font-weight: 500;
+      padding: 0.75rem 0.6rem;
+      width: 100%;
+      outline: none;
+      transition: border-color 0.2s;
+      -moz-appearance: textfield;
+      appearance: textfield;
+      border-radius: var(--radius);
+    }
+    .field input::-webkit-outer-spin-button,
+    .field input::-webkit-inner-spin-button { -webkit-appearance: none; }
+    .field input:focus { border-color: var(--accent); }
+    .field input.err { border-color: var(--error); }
+
+    .error-msg {
+      font-size: 0.65rem;
+      color: var(--error);
+      min-height: 1rem;
+      letter-spacing: 0.05em;
+    }
+
+    /* Today shortcut */
+    .shortcuts {
+      margin: 0.75rem 0 1.5rem;
+      font-size: 0.65rem;
+      color: var(--muted);
+    }
+    .shortcuts button {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--accent);
+      font-family: 'DM Mono', monospace;
+      font-size: 0.65rem;
+      padding: 0.2rem 0.5rem;
+      cursor: pointer;
+      letter-spacing: 0.1em;
+      transition: background 0.15s;
+      border-radius: var(--radius);
+    }
+    .shortcuts button:hover { background: #1f1f1f; }
+
+    /* Calculate button */
+    .btn {
+      width: 100%;
+      background: var(--accent);
+      color: #0d0d0d;
+      border: none;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.8rem;
+      font-weight: 500;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      padding: 1rem;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+      border-radius: var(--radius);
+    }
+    .btn:hover { background: var(--accent-dim); }
+    .btn:active { transform: scale(0.98); }
+
+    /* Result panel */
+    .result {
+      margin-top: 2rem;
+      border-top: 1px solid var(--border);
+      padding-top: 1.5rem;
+      display: none;
+      animation: fadeUp 0.4s ease;
+    }
+    .result.show { display: block; }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .result-label {
+      font-size: 0.6rem;
+      letter-spacing: 0.2em;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 1rem;
+    }
+
+    .age-primary {
+      display: flex;
+      align-items: baseline;
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .age-primary .num {
+      font-family: 'Playfair Display', serif;
+      font-size: 5rem;
+      font-weight: 900;
+      color: var(--accent);
+      line-height: 1;
+    }
+    .age-primary .unit {
+      font-size: 0.75rem;
+      letter-spacing: 0.15em;
+      color: var(--muted);
+      text-transform: uppercase;
+    }
+
+    .breakdown {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.6rem;
+      margin-bottom: 1.25rem;
+    }
+    .breakdown-item {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      padding: 0.75rem;
+      border-radius: var(--radius);
+    }
+    .breakdown-item .b-num {
+      font-size: 1.5rem;
+      font-weight: 500;
+      color: var(--text);
+    }
+    .breakdown-item .b-unit {
+      font-size: 0.6rem;
+      letter-spacing: 0.15em;
+      color: var(--muted);
+      text-transform: uppercase;
+    }
+
+    .extras {
+      font-size: 0.7rem;
+      color: var(--muted);
+      line-height: 2;
+    }
+    .extras span { color: var(--text); }
+
+    /* Reset */
+    .reset-btn {
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-family: 'DM Mono', monospace;
+      font-size: 0.65rem;
+      letter-spacing: 0.15em;
+      cursor: pointer;
+      margin-top: 1rem;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+      padding: 0;
+      display: none;
+    }
+    .reset-btn:hover { color: var(--text); }
+    .reset-btn.show { display: inline; }
+  </style>
+</head>
+<body>
+<div class="card">
+  <header>
+    <p class="label">How old are you?</p>
+    <h1>Age<br/>Calc.</h1>
+  </header>
+
+  <div class="input-row">
+    <div class="field">
+      <label>Day</label>
+      <input type="number" id="day" placeholder="DD" min="1" max="31"/>
+    </div>
+    <div class="field">
+      <label>Month</label>
+      <input type="number" id="month" placeholder="MM" min="1" max="12"/>
+    </div>
+    <div class="field">
+      <label>Year</label>
+      <input type="number" id="year" placeholder="YYYY" min="1" max="9999"/>
+    </div>
+  </div>
+  <p class="error-msg" id="error"></p>
+
+  <div class="shortcuts">
+    <button id="todayBtn">— Fill today's date</button>
+  </div>
+
+  <button class="btn" id="calcBtn">Calculate Age</button>
+
+  <div class="result" id="result">
+    <p class="result-label">Your age is</p>
+    <div class="age-primary">
+      <span class="num" id="resYears">0</span>
+      <span class="unit">years</span>
+    </div>
+    <div class="breakdown">
+      <div class="breakdown-item">
+        <div class="b-num" id="resMonths">0</div>
+        <div class="b-unit">months</div>
+      </div>
+      <div class="breakdown-item">
+        <div class="b-num" id="resDays">0</div>
+        <div class="b-unit">days</div>
+      </div>
+    </div>
+    <div class="extras" id="extras"></div>
+  </div>
+
+  <button class="reset-btn" id="resetBtn">↩ reset</button>
+</div>
+
+<script>
+  const dayIn    = document.getElementById('day');
+  const monthIn  = document.getElementById('month');
+  const yearIn   = document.getElementById('year');
+  const errorEl  = document.getElementById('error');
+  const resultEl = document.getElementById('result');
+  const resetBtn = document.getElementById('resetBtn');
+
+  // auto-advance inputs
+  dayIn.addEventListener('input', () => { if (dayIn.value.length >= 2) monthIn.focus(); });
+  monthIn.addEventListener('input', () => { if (monthIn.value.length >= 2) yearIn.focus(); });
+  yearIn.addEventListener('keydown', e => { if (e.key === 'Enter') calculate(); });
+
+  document.getElementById('todayBtn').addEventListener('click', () => {
+    const t = new Date();
+    dayIn.value   = t.getDate();
+    monthIn.value = t.getMonth() + 1;
+    yearIn.value  = t.getFullYear();
+    clearError();
+  });
+
+  document.getElementById('calcBtn').addEventListener('click', calculate);
+  resetBtn.addEventListener('click', reset);
+
+  function clearError() {
+    errorEl.textContent = '';
+    [dayIn, monthIn, yearIn].forEach(el => el.classList.remove('err'));
+  }
+
+  function showError(msg, ...fields) {
+    errorEl.textContent = msg;
+    fields.forEach(f => f.classList.add('err'));
+  }
+
+  function validate(d, m, y) {
+    if (!d || !m || !y) { showError('Please fill in all fields.', dayIn, monthIn, yearIn); return false; }
+    if (m < 1 || m > 12) { showError('Month must be 01–12.', monthIn); return false; }
+    if (d < 1 || d > 31) { showError('Day must be 01–31.', dayIn); return false; }
+
+    // days-in-month check
+    const daysInMonth = new Date(y, m, 0).getDate();
+    if (d > daysInMonth) { showError(`${monthName(m)} ${y} only has ${daysInMonth} days.`, dayIn); return false; }
+
+    const today = new Date(); today.setHours(0,0,0,0);
+    const dob   = new Date(y, m-1, d);
+    if (dob > today) { showError('Date of birth cannot be in the future.', dayIn, monthIn, yearIn); return false; }
+    if (y < 1) { showError('Please enter a valid year.', yearIn); return false; }
+
+    return true;
+  }
+
+  function monthName(m) {
+    return ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m-1];
+  }
+
+  function calculate() {
+    clearError();
+    const d = parseInt(dayIn.value);
+    const m = parseInt(monthIn.value);
+    const y = parseInt(yearIn.value);
+
+    if (!validate(d, m, y)) return;
+
+    const today = new Date(); today.setHours(0,0,0,0);
+    const dob   = new Date(y, m-1, d);
+
+    let years  = today.getFullYear() - dob.getFullYear();
+    let months = today.getMonth()    - dob.getMonth();
+    let days   = today.getDate()     - dob.getDate();
+
+    if (days < 0) {
+      months--;
+      days += new Date(today.getFullYear(), today.getMonth(), 0).getDate();
+    }
+    if (months < 0) { years--; months += 12; }
+
+    // extras
+    const totalDays   = Math.floor((today - dob) / 86400000);
+    const totalWeeks  = Math.floor(totalDays / 7);
+    const totalMonths = years * 12 + months;
+    const nextBday    = new Date(today.getFullYear(), m-1, d);
+    if (nextBday <= today) nextBday.setFullYear(today.getFullYear() + 1);
+    const daysToNext  = Math.ceil((nextBday - today) / 86400000);
+
+    // animate number
+    animateNum('resYears', years);
+    animateNum('resMonths', months);
+    animateNum('resDays', days);
+
+    document.getElementById('extras').innerHTML =
+      `total days &nbsp;&nbsp;&nbsp; <span>${totalDays.toLocaleString()}</span><br>` +
+      `total weeks &nbsp;&nbsp; <span>${totalWeeks.toLocaleString()}</span><br>` +
+      `total months &nbsp; <span>${totalMonths.toLocaleString()}</span><br>` +
+      `next birthday <span>${daysToNext === 0 ? '🎂 today!' : `in ${daysToNext} day${daysToNext===1?'':'s'}`}</span>`;
+
+    resultEl.classList.remove('show');
+    void resultEl.offsetWidth; // reflow for re-animation
+    resultEl.classList.add('show');
+    resetBtn.classList.add('show');
+  }
+
+  function animateNum(id, target) {
+    const el = document.getElementById(id);
+    const duration = 500;
+    const start = performance.now();
+    const from = 0;
+    function step(now) {
+      const t = Math.min((now - start) / duration, 1);
+      el.textContent = Math.round(from + (target - from) * easeOut(t));
+      if (t < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
+
+  function easeOut(t) { return 1 - Math.pow(1 - t, 3); }
+
+  function reset() {
+    [dayIn, monthIn, yearIn].forEach(el => el.value = '');
+    clearError();
+    resultEl.classList.remove('show');
+    resetBtn.classList.remove('show');
+    dayIn.focus();
+  }
+</script>
+</body>
+</html>
